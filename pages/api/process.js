@@ -1,6 +1,7 @@
 import formidable from 'formidable-serverless';
 import fs from 'fs';
 import rekognition from "@/aws-services";
+import {FaceDetailList} from "aws-sdk/clients/rekognition";
 
 export const config = {
 	api: {
@@ -29,11 +30,34 @@ export default async function handler(req, res) {
 					MaxLabels: 10, // Maximum number of labels to return
 					MinConfidence: 50, // Minimum confidence level for the detected labels
 				};
+				const faceParams = {
+					Image: {
+						Bytes: image,  // buffer
+					},
+					Attributes: ["ALL", "DEFAULT"]
+				}
+				const celebrityParams = {
+					Image: {
+						Bytes: image,  // buffer
+					}
+				}
 				try {
 					// 4. call the rekognition api to get the detected labels
-					const response = await rekognition.detectLabels(params).promise();
+					const labelsResponse = await rekognition.detectLabels(celebrityParams).promise();
+					const faceResponse = await rekognition.detectFaces(faceParams).promise();
+					const celebrityResponse = await rekognition.recognizeCelebrities(celebrityParams).promise();
 					// 5. return the labels
-					return res.status(200).json({labels: response.Labels})
+
+					return res.status(200).json(
+						{
+							labels:labelsResponse.Labels,
+							face:faceResponse.FaceDetails,
+							celebrityResponse: celebrityResponse.CelebrityFaces
+						});
+					// return res.status(200).json(
+					// 	{
+					// 		labels: celebrityResponse.CelebrityFaces
+					// 	});
 				} catch (error) {
 					console.error('Error detecting labels:', error.message);
 					// 6. error detecting labels - like invalid file etc
